@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Jelajahi Pesona Desa Indonesia — Game Eksplorasi Desa Nusantara</title>
   <meta name="description" content="Game eksplorasi interaktif 3D untuk media promosi dan edukasi desa Nusantara." />
 
@@ -176,16 +176,14 @@
       <span><kbd>M</kbd> Suara</span>
     </div>
 
-    <!-- Kontrol sentuh (hanya tampil di perangkat layar sentuh) -->
+    <!-- Kontrol sentuh : arah gerak lewat sentuhan layar (main.js),
+         tombol E tetap tersedia untuk mengunjungi desa -->
     <div id="kontrol-sentuh" aria-hidden="true">
-      <div class="dpad">
-        <button class="ks" data-kunci="atas" style="grid-area:u">▲</button>
-        <button class="ks" data-kunci="kiri" style="grid-area:l">◀</button>
-        <button class="ks" data-kunci="bawah" style="grid-area:d">▼</button>
-        <button class="ks" data-kunci="kanan" style="grid-area:r">▶</button>
-      </div>
-      <button class="ks ks-e" data-kunci="e">E</button>
+      <button id="btn-e-sentuh" class="ks-e" aria-label="Kunjungi desa">E</button>
     </div>
+
+    <!-- cincin indikator titik sentuh -->
+    <div id="cincin-sentuh" hidden></div>
   </section>
 
   <!-- ============================================================

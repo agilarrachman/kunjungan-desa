@@ -48,7 +48,10 @@ html, body {
   font-family: var(--font-body);
   color: #fff;
   background: #0e1f14;
+  -webkit-tap-highlight-color: transparent;
 }
+
+.hud, .prompt-desa, .indikator-lari, .hint-kontrol { user-select: none; -webkit-user-select: none; }
 
 /* kanvas 3D global : latar hidup untuk landing & layar game */
 #kanvas-dunia {
@@ -678,49 +681,46 @@ kbd {
   50%      { transform: translateX(-50%) scale(1.08); }
 }
 
-/* --- kontrol sentuh (tablet / HP / layar sentuh) --- */
+/* --- kontrol sentuh : kemudi layar + tombol E --- */
+#kanvas-dunia { touch-action: none; }
+
 #kontrol-sentuh { display: none; }
 #kontrol-sentuh.aktif {
   display: block;
   position: absolute;
-  inset: auto 1.2rem 5.2rem 1.2rem;
+  right: max(1.2rem, env(safe-area-inset-right));
+  bottom: max(5.4rem, env(safe-area-inset-bottom));
   z-index: 6;
   pointer-events: none;
 }
-#kontrol-sentuh .dpad {
-  position: absolute;
-  left: 0; bottom: 0;
-  display: grid;
-  grid-template-areas: ". u ." "l d r";
-  gap: .4rem;
-  pointer-events: auto;
-}
-.ks {
-  width: 62px; height: 62px;
-  border-radius: 18px;
-  display: grid; place-items: center;
-  font-size: 1.3rem;
-  background: rgba(252, 248, 238, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  color: var(--tinta-hijau);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 10px 26px rgba(10, 30, 18, 0.25);
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-.ks:active { background: rgba(255, 201, 77, .75); }
 .ks-e {
-  position: absolute;
-  right: 0; bottom: 0;
   width: 74px; height: 74px;
   border-radius: 50%;
+  display: grid; place-items: center;
   font-weight: 800;
   font-size: 1.6rem;
   pointer-events: auto;
   background: linear-gradient(180deg, #ffe082, #ffb300);
   color: #4e3417;
-  box-shadow: 0 5px 0 #b28704;
+  box-shadow: 0 5px 0 #b28704, 0 10px 26px rgba(10, 30, 18, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ks-e:active { transform: translateY(3px); box-shadow: 0 2px 0 #b28704; }
+
+/* cincin indikator titik sentuh */
+#cincin-sentuh {
+  position: fixed;
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: 3px solid rgba(252, 248, 238, 0.9);
+  background: rgba(252, 248, 238, 0.15);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 6;
+  box-shadow: 0 0 0 2px rgba(23, 48, 31, 0.25);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1016,22 +1016,158 @@ kbd {
 .tombol-akhir { display: flex; gap: .8rem; justify-content: center; flex-wrap: wrap; }
 
 /* ---------------------------------------------------------------------------
-   09. RESPONSIF — TABLET & LAYAR KECIL
+   09. RESPONSIF — TABLET, PONSEL & PONSEL KECIL
 --------------------------------------------------------------------------- */
+
+/* --- TABLET (≤ 940px) : kustomisasi menumpuk, popup satu kolom --- */
 @media (max-width: 940px) {
   .panggung-kustom {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(220px, 34vh) 1fr;
+    grid-template-rows: minmax(200px, 30vh) 1fr;
+    gap: 1rem;
+    padding: 1rem;
   }
-  .panel-opsi { max-height: none; }
+  .panel-opsi { max-height: none; padding: 1.1rem; }
+  .panel-opsi header h2 { font-size: 1.55rem; }
 
-  .popup { grid-template-columns: 1fr; overflow-y: auto; }
-  .popup-kiri { max-height: 34vh; }
+  .popup {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    gap: .9rem;
+  }
+  .popup-kiri { flex: none; min-height: auto; }
+  .popup-kanan { overflow-y: visible; flex: none; }
+  .popup-aksi { flex: none; margin-top: auto; }
   .popup-dua-kolom { grid-template-columns: 1fr; }
   .popup-aksi { justify-content: center; }
 
-  .kiri-atas { width: 200px; padding: .8rem; }
-  .daftar-desa { display: none; }          /* hemat ruang di tablet */
+  .kiri-atas { width: 200px; padding: .8rem .9rem; }
+  .daftar-desa { display: none; }          /* hemat ruang */
   .hint-kontrol { display: none; }          /* diganti kontrol sentuh */
   .progres-angka b { font-size: 1.5rem; }
+  .progres-waktu { margin-bottom: 0; }
+
+  .kiri-atas { top: max(1rem, env(safe-area-inset-top)); left: max(1rem, env(safe-area-inset-left)); }
+  .kanan-atas { top: max(1rem, env(safe-area-inset-top)); right: max(1rem, env(safe-area-inset-right)); }
+}
+
+/* --- PONSEL (≤ 620px) : HUD ringkas, minimap kecil, kontrol lega --- */
+@media (max-width: 620px) {
+  /* ---- landing ---- */
+  .konten-landing { padding: 1.2rem; }
+  .lencana { font-size: .82rem; padding: .45rem 1rem; }
+  #layar-landing h1 { margin: .8rem 0 .5rem; }
+  .subjudul { font-size: .95rem; }
+  #btn-mulai { margin-top: 1.5rem; padding: .95rem 2.2rem; font-size: 1.08rem; }
+  .deret-tema { gap: .4rem; margin-top: 1.4rem; }
+  .chip-tema { font-size: .78rem; padding: .38rem .8rem; }
+  .info-kecil { flex-wrap: wrap; gap: .55rem; font-size: .8rem; margin-top: 1.5rem; row-gap: .3rem; }
+  .info-kecil i { display: none; }
+
+  /* ---- kustomisasi ---- */
+  .panggung-kustom { grid-template-rows: minmax(180px, 26vh) 1fr; padding: .8rem; gap: .8rem; }
+  .panel-opsi { padding: .95rem; }
+  .panel-opsi header h2 { font-size: 1.35rem; }
+  .panel-opsi header p { font-size: .85rem; }
+  .grup > label { font-size: .86rem; margin: .55rem 0 .4rem; }
+  .opsi-gender { padding: .6rem; font-size: .9rem; }
+  .kisi-aksesoris { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: .45rem; }
+  .kartu-aksesoris { font-size: .7rem; padding: .5rem .25rem; }
+  .tombol-aksi { gap: .5rem; }
+  .tombol-aksi .tombol { padding: .7rem .9rem; font-size: .88rem; }
+  .label-preview { padding: .4rem .9rem; }
+  .label-preview small { display: none; }
+
+  /* ---- HUD game : panel progres ringkas + minimap kecil ---- */
+  .kiri-atas {
+    top: max(.7rem, env(safe-area-inset-top));
+    left: max(.7rem, env(safe-area-inset-left));
+    width: auto;
+    max-width: 56vw;
+    padding: .65rem .8rem;
+    border-radius: 14px;
+  }
+  .hud-judul { font-size: .78rem; margin-bottom: .25rem; }
+  .progres-angka b { font-size: 1.35rem; }
+  .progres-angka span { font-size: .72rem; }
+  .progres-bar { height: 7px; margin: .35rem 0 .3rem; }
+  .progres-waktu { font-size: .74rem; }
+
+  .kotak-minimap { padding: .35rem .35rem .25rem; border-radius: 14px; }
+  #minimap { width: 74px; height: 154px; }           /* kanvas 120x250 diskalakan CSS */
+  .judul-minimap { font-size: .56rem; }
+  .tombol-bulat { width: 44px; height: 44px; font-size: 1.1rem; }
+  .kanan-atas { gap: .5rem; top: max(.7rem, env(safe-area-inset-top)); right: max(.7rem, env(safe-area-inset-right)); }
+
+  /* ---- prompt & indikator : naik agar tidak tertutup kontrol sentuh ---- */
+  .prompt-desa {
+    bottom: 36%;
+    font-size: .88rem;
+    padding: .6rem 1rem;
+    gap: .45rem;
+    max-width: 94vw;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .prompt-desa .kunci { width: 1.8rem; height: 1.8rem; font-size: .9rem; border-radius: 8px; }
+  .indikator-lari { bottom: 48%; font-size: .76rem; padding: .32rem .8rem; }
+
+  /* ---- toast naik di atas d-pad ---- */
+  .toast { bottom: 15rem; font-size: .85rem; max-width: 90vw; text-align: center; }
+
+  /* ---- popup ---- */
+  .overlay { padding: .8rem; }
+  .popup { padding: 1rem .9rem; max-height: 94vh; gap: .8rem; border-radius: 20px; }
+  .tutup-x { width: 32px; height: 32px; top: .6rem; right: .6rem; }
+  .badge-tema { font-size: .68rem; padding: .26rem .7rem; }
+  .badge-daerah { font-size: .7rem; padding: .25rem .7rem; }
+  #popup-nama { font-size: 1.4rem; }
+  .popup-deskripsi { font-size: .85rem; }
+  .popup-cirikhas { font-size: .78rem; }
+  .popup-stat { gap: .5rem; margin: .7rem 0; }
+  .popup-stat > div { padding: .45rem .6rem; }
+  .popup-stat b { font-size: 1.15rem; }
+  .popup-blok h3 { font-size: .88rem; }
+  .chip { font-size: .72rem; padding: .26rem .6rem; }
+  .daftar-titik li { font-size: .8rem; }
+  .popup-aksi { padding-top: .8rem; gap: .5rem; }
+  .popup-aksi .tombol { flex: 1; padding: .7rem .8rem; font-size: .9rem; }
+
+  /* ---- ending ---- */
+  .kartu-akhir { padding: 1.3rem 1.1rem; }
+  .medali { font-size: 2.8rem; }
+  .akhir-kabut { font-size: .76rem; }
+  .kartu-akhir h1 { font-size: 1.7rem; }
+  .sub-akhir { font-size: .88rem; margin-bottom: 1.1rem; }
+  .stat-akhir { gap: .6rem; margin-bottom: 1.2rem; }
+  .stat-akhir .kaca { min-width: 116px; padding: .7rem 1rem; }
+  .stat-akhir b { font-size: 1.5rem; }
+  .tombol-akhir { flex-direction: column; align-items: stretch; }
+}
+
+/* --- PONSEL KECIL (≤ 400px) : kontrol & HUD lebih kompak lagi --- */
+@media (max-width: 400px) {
+  .ks-e { width: 64px; height: 64px; font-size: 1.4rem; }
+  #kontrol-sentuh.aktif { right: .8rem; bottom: max(4.6rem, env(safe-area-inset-bottom)); }
+  #minimap { width: 64px; height: 134px; }
+  .kiri-atas { max-width: 60vw; }
+  .prompt-desa { font-size: .8rem; padding: .55rem .8rem; }
+  .chip-tema { font-size: .72rem; }
+  .kiri-atas { padding: .55rem .7rem; }
+  #cincin-sentuh { width: 54px; height: 54px; }
+}
+
+/* --- orientasi landscape ponsel : HUD menyempit agar pemandangan lebar --- */
+@media (max-height: 480px) and (orientation: landscape) {
+  .kiri-atas { max-width: 44vw; padding: .5rem .7rem; }
+  .hud-judul { font-size: .72rem; }
+  .progres-angka b { font-size: 1.1rem; }
+  .progres-bar { margin: .25rem 0; }
+  .progres-waktu { display: none; }
+  #minimap { width: 56px; height: 117px; }
+  .prompt-desa { bottom: 22%; }
+  .toast { bottom: 7rem; }
+  .ks-e { width: 56px; height: 56px; }
+  #kontrol-sentuh.aktif { right: .8rem; bottom: max(.8rem, env(safe-area-inset-bottom)); }
 }

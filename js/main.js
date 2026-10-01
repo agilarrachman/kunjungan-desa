@@ -154,7 +154,9 @@ el.btnJelajah.addEventListener("click", () => {
   pasangKarakter();               // terapkan kustomisasi terbaru
   resetPermainan();
   pindahLayar("game");
-  tampilkanToast("Gunakan tombol panah untuk berjalan 🚶");
+  tampilkanToast(perangkatSentuh
+    ? "Ketuk & tahan layar untuk berjalan"
+    : "Gunakan tombol panah untuk berjalan");
 });
 
 /* ---------------------------------------------------------------------------
@@ -391,27 +393,69 @@ window.addEventListener("keyup", (e) => {
   if (nama) kunci[nama] = false;
 });
 
-/* kontrol sentuh (tablet / HP / layar sentuh) */
-if (matchMedia("(pointer: coarse)").matches || "ontouchstart" in window || navigator.maxTouchPoints > 0) {
+/* ---------------------------------------------------------------------------
+   Kontrol sentuh : KEMUDI LAYAR + tombol E
+   - Sentuh & tahan layar saat bermain -> karakter jalan ke arah titik sentuh
+     (atas = maju & tahan lama untuk lari, kanan/kiri = geser, bawah = mundur)
+   - Tombol E di kanan bawah : kunjungi desa
+--------------------------------------------------------------------------- */
+const perangkatSentuh = matchMedia("(pointer: coarse)").matches ||
+  "ontouchstart" in window || navigator.maxTouchPoints > 0;
+if (perangkatSentuh) {
   document.getElementById("kontrol-sentuh").classList.add("aktif");
 }
-document.querySelectorAll(".ks").forEach((tombol) => {
-  const nama = tombol.dataset.kunci;
-  const tekan = (e) => {
-    e.preventDefault();
-    if (nama === "e") {
-      if (state.popupTerbuka) tutupPopup();
-      else if (state.desaDekat) kunjungiDesa(state.desaDekat);
-    } else {
-      kunci[nama] = true;
-    }
-  };
-  const lepas = (e) => { e.preventDefault(); if (nama !== "e") kunci[nama] = false; };
-  tombol.addEventListener("pointerdown", tekan);
-  tombol.addEventListener("pointerup", lepas);
-  tombol.addEventListener("pointerleave", lepas);
-  tombol.addEventListener("pointercancel", lepas);
+
+/* tombol E */
+$("btn-e-sentuh").addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  e.stopPropagation();                        // jangan memicu kemudi layar
+  if (state.popupTerbuka) tutupPopup();
+  else if (state.desaDekat) kunjungiDesa(state.desaDekat);
 });
+
+/* kemudi layar : arah gerak mengikuti posisi jari terhadap layar */
+const cincinSentuh = $("cincin-sentuh");
+let jariKendali = null;                       // pointerId jari yang mengendalikan
+
+function terapkanKemudi(x, y) {
+  const cx = innerWidth / 2;
+  const cy = innerHeight * 0.52;              // pusat kendali sedikit di bawah tengah
+  const dx = x - cx, dy = y - cy;
+  const jarak = Math.hypot(dx, dy);
+  kunci.atas = kunci.bawah = kunci.kiri = kunci.kanan = false;
+  if (jarak < 40) return;                     // zona mati : dianggap berdiri
+  const ambang = jarak * 0.35;                // arah dominan ditentukan komponen terbesar
+  if (dy < -ambang) kunci.atas = true;        // sentuh bagian atas  -> maju
+  if (dy >  ambang) kunci.bawah = true;       // sentuh bagian bawah -> mundur
+  if (dx >  ambang) kunci.kanan = true;       // sentuh sisi kanan   -> geser kanan
+  if (dx < -ambang) kunci.kiri = true;        // sentuh sisi kiri    -> geser kiri
+}
+
+el.game.addEventListener("pointerdown", (e) => {
+  if (!perangkatSentuh || state.layar !== "game") return;
+  if (jariKendali !== null) return;           // satu jari pengendali saja
+  if (e.target.closest("button") || e.target !== el.kanvasDunia) return; // sentuhan pada UI diabaikan
+  jariKendali = e.pointerId;
+  try { el.game.setPointerCapture(e.pointerId); } catch (err) { /* aman diabaikan */ }
+  terapkanKemudi(e.clientX, e.clientY);
+  cincinSentuh.style.left = e.clientX + "px";
+  cincinSentuh.style.top = e.clientY + "px";
+  cincinSentuh.hidden = false;
+});
+el.game.addEventListener("pointermove", (e) => {
+  if (e.pointerId !== jariKendali) return;
+  terapkanKemudi(e.clientX, e.clientY);       // arah berubah mengikuti gerakan jari
+  cincinSentuh.style.left = e.clientX + "px";
+  cincinSentuh.style.top = e.clientY + "px";
+});
+const lepasKemudi = (e) => {
+  if (e.pointerId !== jariKendali) return;
+  jariKendali = null;
+  kunci.atas = kunci.bawah = kunci.kiri = kunci.kanan = false;
+  cincinSentuh.hidden = true;
+};
+el.game.addEventListener("pointerup", lepasKemudi);
+el.game.addEventListener("pointercancel", lepasKemudi);
 
 function toggleSuara() {
   state.bisu = !state.bisu;
