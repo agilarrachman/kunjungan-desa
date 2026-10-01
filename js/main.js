@@ -156,7 +156,7 @@ el.btnJelajah.addEventListener("click", () => {
   resetPermainan();
   pindahLayar("game");
   tampilkanToast(perangkatSentuh
-    ? "Gerakkan analog kiri bawah untuk berjalan"
+    ? "Ketuk layar lalu geser untuk berjalan"
     : "Gunakan tombol panah untuk berjalan");
 });
 
@@ -396,71 +396,61 @@ window.addEventListener("keyup", (e) => {
 });
 
 /* ---------------------------------------------------------------------------
-   Kontrol sentuh : ANALOG VIRTUAL (tanpa tombol arah & tanpa tombol E)
-   - Geser analog : maju/mundur/kiri/kanan; digeser jauh (>75%) = lari
+   Kontrol sentuh : ANALOG TAP-LAYAR (tanpa UI tampil)
+   - Ketuk & tahan di mana pun saat bermain, lalu geser jari :
+     arah gerak mengikuti arah geseran (atas = maju, bawah = mundur, dst.)
+   - Geseran kecil = jalan, geseran jauh = lari
    - Kunjungan desa otomatis saat karakter sampai dekat gapura
 --------------------------------------------------------------------------- */
 const perangkatSentuh = matchMedia("(pointer: coarse)").matches ||
   "ontouchstart" in window || navigator.maxTouchPoints > 0;
-if (perangkatSentuh) {
-  document.getElementById("kontrol-sentuh").classList.add("aktif");
-}
 
 /* state analog : arah satuan (nx, ny) & besar dorongan (0..1) */
 const analog = { aktif: false, nx: 0, ny: 0, mag: 0 };
+let jariKendali = null;                  // pointerId jari yang mengendalikan
+let asalX = 0, asalY = 0;                // titik ketukan pertama (pusat analog)
+const MATI_PX = 12;                      // geseran di bawah ini = berdiri
+const LARI_PX = 48;                      // geseran melebihi ini = lari
+const AMBANG_LARI = 0.75;
 
-const elAnalog = $("analog");
-const elKnob = $("analog-tombol");
-let jariAnalog = null;
-let pusatX = 0, pusatY = 0;
-const JARIK_MAX = 32;                        // jarak geser maksimum knob (px) — knob tetap di dalam dasar
-const ZONA_MATI = 0.18;                      // dorongan di bawah ini = berdiri
-const AMBANG_LARI = 0.75;                    // dorongan di atas ini = lari
-
-function perbaruiAnalog(x, y) {
-  let vx = x - pusatX, vy = y - pusatY;
-  const jarak = Math.hypot(vx, vy);
-  const dorong = Math.min(jarak, JARIK_MAX);
-  if (jarak > 0) { vx = (vx / jarak) * dorong; vy = (vy / jarak) * dorong; }
-  elKnob.style.transform = `translate(${vx}px, ${vy}px)`;
-
-  const besar = dorong / JARIK_MAX;          // 0..1
-  if (besar < ZONA_MATI) {
+function perbaruiKemudi(x, y) {
+  let dx = x - asalX, dy = y - asalY;
+  const jarak = Math.hypot(dx, dy);
+  if (jarak < MATI_PX) {                  // belum digeser berarti : berdiri
     analog.aktif = false; analog.mag = 0; analog.nx = 0; analog.ny = 0;
     return;
   }
   analog.aktif = true;
-  analog.mag = besar;
-  analog.nx = jarak > 0 ? vx / dorong : 0;   // arah satuan
-  analog.ny = jarak > 0 ? vy / dorong : 0;
+  analog.mag = Math.min(jarak / LARI_PX, 1);
+  analog.nx = dx / jarak;                 // arah satuan
+  analog.ny = dy / jarak;
 }
 
-function resetAnalog() {
+/* lepas kendali (mis. saat popup terbuka) */
+function lepasKemudiPaksa() {
+  jariKendali = null;
   analog.aktif = false; analog.mag = 0; analog.nx = 0; analog.ny = 0;
-  elKnob.style.transform = "translate(0px, 0px)";
 }
 
-elAnalog.addEventListener("pointerdown", (e) => {
-  if (jariAnalog !== null) return;
-  jariAnalog = e.pointerId;
-  e.stopPropagation();
-  try { elAnalog.setPointerCapture(e.pointerId); } catch (err) { /* aman diabaikan */ }
-  const kotak = elAnalog.getBoundingClientRect();
-  pusatX = kotak.left + kotak.width / 2;
-  pusatY = kotak.top + kotak.height / 2;
-  perbaruiAnalog(e.clientX, e.clientY);
+el.game.addEventListener("pointerdown", (e) => {
+  if (!perangkatSentuh || state.layar !== "game" || state.popupTerbuka) return;
+  if (jariKendali !== null) return;       // satu jari pengendali saja
+  if (e.target.closest("button")) return; // sentuhan pada tombol UI diabaikan
+  jariKendali = e.pointerId;
+  asalX = e.clientX; asalY = e.clientY;   // pusat analog = titik ketukan
+  perbaruiKemudi(e.clientX, e.clientY);
+  try { el.game.setPointerCapture(e.pointerId); } catch (err) { /* aman diabaikan */ }
 });
-elAnalog.addEventListener("pointermove", (e) => {
-  if (e.pointerId !== jariAnalog) return;
-  perbaruiAnalog(e.clientX, e.clientY);
+el.game.addEventListener("pointermove", (e) => {
+  if (e.pointerId !== jariKendali) return;
+  perbaruiKemudi(e.clientX, e.clientY);   // arah berubah mengikuti geseran jari
 });
-const lepasAnalog = (e) => {
-  if (e.pointerId !== jariAnalog) return;
-  jariAnalog = null;
-  resetAnalog();
+const lepasKemudi = (e) => {
+  if (e.pointerId !== jariKendali) return;
+  lepasKemudiPaksa();
 };
-elAnalog.addEventListener("pointerup", lepasAnalog);
-elAnalog.addEventListener("pointercancel", lepasAnalog);
+el.game.addEventListener("pointerup", lepasKemudi);
+el.game.addEventListener("pointercancel", lepasKemudi);
 
 function toggleSuara() {
   state.bisu = !state.bisu;
@@ -878,6 +868,7 @@ function perbaruiPopProp(dt) {
 
 function bukaPopup(desa) {
   const d = desa.data;
+  lepasKemudiPaksa();                       // lepas kendali sentuh selama card terbuka
   state.popupTerbuka = true;
 
   el.popupTema.textContent = `${d.ikon} ${d.tema}`;

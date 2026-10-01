@@ -50,9 +50,10 @@ satu desa per tema. Saat mengunjungi sebuah desa, avatar otomatis memakai
 - **Tahan ↑** — setelah ±1 detik karakter mulai **berlari** (kecepatan naik halus)
 - **E** — kunjungi desa (saat dekat gapura)
 - **M** — mute/unmute suara · **Esc** — tutup popup
-- **Perangkat sentuh** : tanpa tombol arah — gunakan **analog virtual** di kiri
-  bawah (geser = maju/mundur/kiri/kanan, **dorong jauh = lari**). Card penjelasan
-  desa **terbuka otomatis** saat karakter sampai di gapura desa.
+- **Perangkat sentuh** : tanpa tombol arah & tanpa widget — **ketuk layar lalu
+  geser jari** seperti memakai analog tak terlihat (geseran kecil = jalan,
+  geseran jauh = lari). Card penjelasan desa **terbuka otomatis** saat
+  karakter sampai di gapura desa.
 
 ## Mode Pengembang
 

@@ -681,43 +681,11 @@ kbd {
   50%      { transform: translateX(-50%) scale(1.08); }
 }
 
-/* --- kontrol sentuh : analog virtual kecil (tanpa tombol arah & tanpa E) --- */
+/* --- kontrol sentuh : analog tak terlihat (ketuk & geser layar) ---
+   Tidak ada widget tampil; logikanya di main.js.
+   Prompt & indikator bersifat informasi -> jangan menangkap sentuhan */
 #kanvas-dunia { touch-action: none; }
-
-#kontrol-sentuh { display: none; }
-#kontrol-sentuh.aktif {
-  display: block;
-  position: absolute;
-  left: max(1.1rem, env(safe-area-inset-left));
-  /* dinaikkan dari tepi bawah & SAMA di portrait maupun landscape
-     agar posisi analog tidak berpindah saat layar diputar */
-  bottom: max(4.4rem, calc(env(safe-area-inset-bottom) + 3.4rem));
-  z-index: 6;
-}
-#analog {
-  position: relative;
-  width: 118px; height: 118px;
-  border-radius: 50%;
-  background: rgba(252, 248, 238, 0.22);
-  border: 2px solid rgba(252, 248, 238, 0.65);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 8px 24px rgba(10, 30, 18, 0.25);
-  touch-action: none;
-  pointer-events: auto;
-  user-select: none;
-  -webkit-user-select: none;
-}
-#analog-tombol {
-  position: absolute;
-  left: 50%; top: 50%;
-  width: 52px; height: 52px;
-  margin: -26px 0 0 -26px;                 /* terpusat; digerakkan via transform */
-  border-radius: 50%;
-  background: linear-gradient(180deg, #fffdf6, #eee5cf);
-  border: 2px solid rgba(23, 48, 31, 0.35);
-  box-shadow: 0 6px 16px rgba(10, 30, 18, 0.35);
-  pointer-events: none;
-}
+.prompt-desa, .indikator-lari { pointer-events: none; }
 
 /* ---------------------------------------------------------------------------
    07. POPUP INFORMASI DESA
@@ -1148,8 +1116,6 @@ kbd {
 
 /* --- PONSEL KECIL (≤ 400px) : kontrol & HUD lebih kompak lagi --- */
 @media (max-width: 400px) {
-  #analog { width: 92px; height: 92px; }
-  #analog-tombol { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
   #minimap { width: 64px; height: 134px; }
   .kiri-atas { max-width: 60vw; }
   .prompt-desa { font-size: .8rem; padding: .55rem .8rem; }
