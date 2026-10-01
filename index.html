@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jelajahi Pesona Desa Indonesia — Game Eksplorasi Desa Nusantara</title>
+  <meta name="description" content="Game eksplorasi interaktif 3D untuk media promosi dan edukasi desa Nusantara." />
+
+  <!-- Font (opsional, online). Offline tetap jalan dengan font sistem. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ============================================================
+       KANVAS 3D GLOBAL — dunia desa dirender sejak awal dan menjadi
+       latar hidup layar pembuka (kamera sinematik) sekaligus layar game.
+  ============================================================ -->
+  <canvas id="kanvas-dunia"></canvas>
+
+  <!-- ============================================================
+       PERINGKAT LIBRARY (tampil bila three.js gagal dimuat)
+  ============================================================ -->
+  <div id="galat-lib" hidden>
+    <div class="kartu-galat">
+      <h2>⚠️ Library 3D belum termuat</h2>
+      <p>File <code>js/lib/three.min.js</code> tidak ditemukan. Pastikan file tersebut ada,
+      atau sambungkan internet lalu muat ulang halaman.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       LAYAR 1 — OPENING / LANDING
+       Latar = dunia 3D asli (kanvas di atas) + lapisan gelap tipis
+       agar teks tetap terbaca.
+  ============================================================ -->
+  <section id="layar-landing" class="screen aktif">
+    <div class="selimut-landing" aria-hidden="true"></div>
+    <!-- partikel cahaya melayang (CSS) -->
+    <div class="partikel"></div>
+
+    <div class="konten-landing">
+      <span class="lencana">🌾 Eksplorasi Desa Tematik Nusantara</span>
+      <h1>Jelajahi Pesona<br /><em>Desa Indonesia</em></h1>
+      <p class="subjudul">Temukan keunikan dan potensi desa melalui perjalanan interaktif —
+      jelajahi desa berdasarkan kekuatan uniknya.</p>
+      <button id="btn-mulai" class="tombol utama besar">Mulai Petualangan</button>
+      <div class="deret-tema">
+        <span class="chip-tema">🏝️ Desa Wisata</span>
+        <span class="chip-tema">💻 Desa Digital</span>
+        <span class="chip-tema">🌾 Desa Pangan</span>
+        <span class="chip-tema">⚡ Desa Energi</span>
+      </div>
+      <div class="info-kecil">
+        <span>🏞️ 4 Desa Tematik</span><i></i><span>🧑‍🎤 Karakter Kustom</span><i></i><span>🗺️ Peta Interaktif</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       LAYAR 2 — KUSTOMISASI KARAKTER
+  ============================================================ -->
+  <section id="layar-kustom" class="screen">
+    <div class="latar-kustom" aria-hidden="true"></div>
+
+    <div class="panggung-kustom">
+      <!-- Panggung preview 3D -->
+      <div class="panel-preview kaca">
+        <canvas id="kanvas-preview"></canvas>
+        <div class="label-preview">
+          <b id="preview-label">Karakter Laki-laki</b>
+          <small>geser pada karakter untuk memutar</small>
+        </div>
+      </div>
+
+      <!-- Panel opsi kustomisasi -->
+      <div class="panel-opsi kaca">
+        <header>
+          <h2>🎨 Buat Karaktermu</h2>
+          <p>Tampilan ini akan menemanimu menjelajahi desa.</p>
+        </header>
+
+        <!-- Jenis karakter -->
+        <div class="grup">
+          <label>Jenis Karakter</label>
+          <div class="pilihan-gender">
+            <button class="opsi-gender aktif" data-gender="laki">Laki-laki</button>
+            <button class="opsi-gender" data-gender="perempuan">Perempuan</button>
+          </div>
+        </div>
+
+        <!-- Warna kulit / rambut / pakaian (diisi JS dari PALET) -->
+        <div class="grup">
+          <label>Warna Kulit</label>
+          <div class="deret-warna" id="warna-kulit"></div>
+        </div>
+        <div class="grup">
+          <label>Warna Rambut</label>
+          <div class="deret-warna" id="warna-rambut"></div>
+        </div>
+        <div class="grup">
+          <label>Warna Pakaian</label>
+          <div class="deret-warna" id="warna-pakaian"></div>
+        </div>
+
+        <!-- Aksesoris (diisi JS dari AKSESORIS) -->
+        <div class="grup">
+          <label>Aksesoris Bertema Desa <small>(boleh lebih dari satu)</small></label>
+          <div class="kisi-aksesoris" id="kisi-aksesoris"></div>
+        </div>
+
+        <!-- Aksi -->
+        <div class="tombol-aksi">
+          <button id="btn-acak" class="tombol hantu">Random</button>
+          <button id="btn-simpan" class="tombol hantu">Simpan Karakter</button>
+          <button id="btn-jelajah" class="tombol utama">Mulai Jelajah</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       LAYAR 3 — DUNIA EKSPLORASI (memakai kanvas 3D global + HUD)
+  ============================================================ -->
+  <section id="layar-game" class="screen">
+    <div class="vignette" aria-hidden="true"></div>
+
+    <!-- HUD kiri atas : progres eksplorasi -->
+    <div class="hud kiri-atas kaca">
+      <div class="hud-judul">🧭 Progres Eksplorasi</div>
+      <div class="progres-angka"><b id="progres-jumlah">0</b><span>/<span id="progres-total">4</span> desa dikunjungi</span></div>
+      <div class="progres-bar"><div id="progres-isi"></div></div>
+      <div class="progres-waktu">⏱️ <span id="waktu-main">00:00</span></div>
+      <div class="daftar-desa" id="daftar-desa"><!-- chip desa diisi JS --></div>
+    </div>
+
+    <!-- Indikator lari (muncul saat tahan maju) -->
+    <div id="indikator-lari" class="indikator-lari" hidden>🏃 Lari…</div>
+
+    <!-- HUD kanan atas : mini map + tombol suara -->
+    <div class="hud kanan-atas">
+      <div class="kaca kotak-minimap">
+        <canvas id="minimap" width="120" height="250"></canvas>
+        <span class="judul-minimap">Mini Map</span>
+      </div>
+      <button id="tombol-suara" class="kaca tombol-bulat" aria-label="Suara: nyala">
+        <svg id="ikon-suara-nyala" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1c3a28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="#1c3a28"/>
+          <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+          <path d="M18.5 5.5a9 9 0 0 1 0 13"/>
+        </svg>
+        <svg id="ikon-suara-bisu" hidden width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1c3a28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="#1c3a28"/>
+          <line x1="23" y1="9" x2="17" y2="15"/>
+          <line x1="17" y1="9" x2="23" y2="15"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Prompt interaksi desa -->
+    <div id="prompt-desa" class="prompt-desa" hidden>
+      <span class="kunci">E</span>
+      <span>Tekan <b>E</b> untuk Mengunjungi</span>
+      <b id="prompt-nama" class="nama-desa"></b>
+    </div>
+
+    <!-- Bantuan kontrol -->
+    <div class="hud bawah-tengah kaca hint-kontrol">
+      <span><kbd>↑</kbd> Maju</span>
+      <span><kbd>↓</kbd> Mundur</span>
+      <span><kbd>←</kbd><kbd>→</kbd> Geser Kiri/Kanan</span>
+      <span><kbd>E</kbd> Kunjungi</span>
+      <span><kbd>M</kbd> Suara</span>
+    </div>
+
+    <!-- Kontrol sentuh (hanya tampil di perangkat layar sentuh) -->
+    <div id="kontrol-sentuh" aria-hidden="true">
+      <div class="dpad">
+        <button class="ks" data-kunci="atas" style="grid-area:u">▲</button>
+        <button class="ks" data-kunci="kiri" style="grid-area:l">◀</button>
+        <button class="ks" data-kunci="bawah" style="grid-area:d">▼</button>
+        <button class="ks" data-kunci="kanan" style="grid-area:r">▶</button>
+      </div>
+      <button class="ks ks-e" data-kunci="e">E</button>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       POPUP INFORMASI DESA (glassmorphism)
+  ============================================================ -->
+  <div id="popup-desa" class="overlay" aria-hidden="true">
+    <div class="popup kaca-kuat" role="dialog" aria-modal="true" aria-labelledby="popup-nama">
+      <button class="tutup-x" id="popup-tutup-x" aria-label="Tutup popup">✕</button>
+
+      <div class="popup-kiri">
+        <img id="popup-img" alt="Ilustrasi desa" />
+        <div class="galeri-mini" id="popup-galeri"><!-- thumbnail diisi JS --></div>
+      </div>
+
+      <div class="popup-kanan">
+        <span class="badge-tema" id="popup-tema">🏝️ Desa Wisata</span>
+        <span class="badge-daerah" id="popup-daerah">📍</span>
+        <h2 id="popup-nama">Nama Desa</h2>
+        <p class="popup-deskripsi" id="popup-deskripsi"></p>
+        <p class="popup-cirikhas" id="popup-cirikhas"></p>
+
+        <div class="popup-stat">
+          <div><b id="popup-penduduk">—</b><span>JIWA PENDUDUK</span></div>
+          <div><b id="popup-luas">—</b><span>LUAS WILAYAH (HA)</span></div>
+        </div>
+
+        <div class="popup-blok">
+          <h3>⭐ Keunggulan Desa</h3>
+          <div class="chip-group" id="popup-keunggulan"></div>
+        </div>
+        <div class="popup-blok">
+          <h3>🏆 Produk Unggulan</h3>
+          <div class="chip-group" id="popup-produk"></div>
+        </div>
+        <div class="popup-dua-kolom">
+          <div class="popup-blok">
+            <h3>🗺️ Wisata Desa</h3>
+            <ul class="daftar-titik" id="popup-wisata"></ul>
+          </div>
+          <div class="popup-blok">
+            <h3>🛍️ UMKM</h3>
+            <ul class="daftar-titik" id="popup-umkm"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="popup-aksi">
+        <button id="popup-tutup" class="tombol hantu">Tutup</button>
+        <button id="popup-lanjut" class="tombol utama">Desa Berikutnya →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       LAYAR 4 — ENDING : kabut awan menutup perjalanan…
+  ============================================================ -->
+  <section id="layar-akhir" class="screen">
+    <div class="akhir-langit" aria-hidden="true"></div>
+
+    <!-- Awan berarak menutupi layar (layer berlapis, kecepatan berbeda) -->
+    <div class="akhir-awan awan-1" aria-hidden="true"></div>
+    <div class="akhir-awan awan-2" aria-hidden="true"></div>
+    <div class="akhir-awan awan-3" aria-hidden="true"></div>
+    <div class="akhir-awan awan-4" aria-hidden="true"></div>
+    <div class="akhir-awan awan-5" aria-hidden="true"></div>
+    <div class="akhir-awan awan-6" aria-hidden="true"></div>
+
+    <div class="kartu-akhir kaca-kuat">
+      <div class="medali">🌫️</div>
+      <p class="akhir-kabut">Kabut perlahan menutupi jalan di belakangmu…</p>
+      <h1>Tunggu <em>eksplorasi</em><br />selanjutnya ya…</h1>
+      <p class="sub-akhir">Perjalananmu belum berakhir di sini —
+      masih banyak desa lain yang menanti di kejauhan.</p>
+
+      <div class="stat-akhir">
+        <div class="kaca"><b id="akhir-desa">0</b><span>Desa Dikunjungi</span></div>
+        <div class="kaca"><b id="akhir-waktu">00:00</b><span>Waktu Eksplorasi</span></div>
+      </div>
+
+      <div class="tombol-akhir">
+        <button id="btn-ulang" class="tombol utama">Ulangi Perjalanan</button>
+        <button id="btn-beranda" class="tombol hantu">Kembali ke Beranda</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Toast notifikasi kecil -->
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- ============================================================
+       URUTAN SCRIPT (harus berurutan!)
+       three.min.js -> data -> audio -> character -> world -> main
+  ============================================================ -->
+  <script src="js/lib/three.min.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/character.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
