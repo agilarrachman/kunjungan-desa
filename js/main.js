@@ -73,6 +73,7 @@ const state = {
   desaDekat: null,          // desa dalam radius interaksi
   targetDesa: null,         // indeks desa tujuan (mercu tanda)
   ujungTersentuh: false,    // sudah sampai ujung jalan (pemicu ending)
+  jedaKunjungOtomatis: 0,   // waktu minimum sebelum kunjungan otomatis lagi (mobile)
   bisu: false,
 };
 
@@ -155,7 +156,7 @@ el.btnJelajah.addEventListener("click", () => {
   resetPermainan();
   pindahLayar("game");
   tampilkanToast(perangkatSentuh
-    ? "Ketuk & tahan layar untuk berjalan"
+    ? "Gerakkan analog kiri bawah untuk berjalan"
     : "Gunakan tombol panah untuk berjalan");
 });
 
@@ -340,6 +341,7 @@ function resetPermainan() {
   state.popupTerbuka = false;
   state.desaDekat = null;
   state.ujungTersentuh = false;
+  state.jedaKunjungOtomatis = 0;
   pemain.pos.set(0, 0, 18);
   pemain.yaw = pemain.yawTarget = Math.PI;
   pemain.vx = pemain.vz = 0;
@@ -394,10 +396,9 @@ window.addEventListener("keyup", (e) => {
 });
 
 /* ---------------------------------------------------------------------------
-   Kontrol sentuh : KEMUDI LAYAR + tombol E
-   - Sentuh & tahan layar saat bermain -> karakter jalan ke arah titik sentuh
-     (atas = maju & tahan lama untuk lari, kanan/kiri = geser, bawah = mundur)
-   - Tombol E di kanan bawah : kunjungi desa
+   Kontrol sentuh : ANALOG VIRTUAL (tanpa tombol arah & tanpa tombol E)
+   - Geser analog : maju/mundur/kiri/kanan; digeser jauh (>75%) = lari
+   - Kunjungan desa otomatis saat karakter sampai dekat gapura
 --------------------------------------------------------------------------- */
 const perangkatSentuh = matchMedia("(pointer: coarse)").matches ||
   "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -405,57 +406,61 @@ if (perangkatSentuh) {
   document.getElementById("kontrol-sentuh").classList.add("aktif");
 }
 
-/* tombol E */
-$("btn-e-sentuh").addEventListener("pointerdown", (e) => {
-  e.preventDefault();
-  e.stopPropagation();                        // jangan memicu kemudi layar
-  if (state.popupTerbuka) tutupPopup();
-  else if (state.desaDekat) kunjungiDesa(state.desaDekat);
-});
+/* state analog : arah satuan (nx, ny) & besar dorongan (0..1) */
+const analog = { aktif: false, nx: 0, ny: 0, mag: 0 };
 
-/* kemudi layar : arah gerak mengikuti posisi jari terhadap layar */
-const cincinSentuh = $("cincin-sentuh");
-let jariKendali = null;                       // pointerId jari yang mengendalikan
+const elAnalog = $("analog");
+const elKnob = $("analog-tombol");
+let jariAnalog = null;
+let pusatX = 0, pusatY = 0;
+const JARIK_MAX = 44;                        // jarak geser maksimum knob (px) — UI tetap kecil
+const ZONA_MATI = 0.18;                      // dorongan di bawah ini = berdiri
+const AMBANG_LARI = 0.75;                    // dorongan di atas ini = lari
 
-function terapkanKemudi(x, y) {
-  const cx = innerWidth / 2;
-  const cy = innerHeight * 0.52;              // pusat kendali sedikit di bawah tengah
-  const dx = x - cx, dy = y - cy;
-  const jarak = Math.hypot(dx, dy);
-  kunci.atas = kunci.bawah = kunci.kiri = kunci.kanan = false;
-  if (jarak < 40) return;                     // zona mati : dianggap berdiri
-  const ambang = jarak * 0.35;                // arah dominan ditentukan komponen terbesar
-  if (dy < -ambang) kunci.atas = true;        // sentuh bagian atas  -> maju
-  if (dy >  ambang) kunci.bawah = true;       // sentuh bagian bawah -> mundur
-  if (dx >  ambang) kunci.kanan = true;       // sentuh sisi kanan   -> geser kanan
-  if (dx < -ambang) kunci.kiri = true;        // sentuh sisi kiri    -> geser kiri
+function perbaruiAnalog(x, y) {
+  let vx = x - pusatX, vy = y - pusatY;
+  const jarak = Math.hypot(vx, vy);
+  const dorong = Math.min(jarak, JARIK_MAX);
+  if (jarak > 0) { vx = (vx / jarak) * dorong; vy = (vy / jarak) * dorong; }
+  elKnob.style.transform = `translate(${vx}px, ${vy}px)`;
+
+  const besar = dorong / JARIK_MAX;          // 0..1
+  if (besar < ZONA_MATI) {
+    analog.aktif = false; analog.mag = 0; analog.nx = 0; analog.ny = 0;
+    return;
+  }
+  analog.aktif = true;
+  analog.mag = besar;
+  analog.nx = jarak > 0 ? vx / dorong : 0;   // arah satuan
+  analog.ny = jarak > 0 ? vy / dorong : 0;
 }
 
-el.game.addEventListener("pointerdown", (e) => {
-  if (!perangkatSentuh || state.layar !== "game") return;
-  if (jariKendali !== null) return;           // satu jari pengendali saja
-  if (e.target.closest("button") || e.target !== el.kanvasDunia) return; // sentuhan pada UI diabaikan
-  jariKendali = e.pointerId;
-  try { el.game.setPointerCapture(e.pointerId); } catch (err) { /* aman diabaikan */ }
-  terapkanKemudi(e.clientX, e.clientY);
-  cincinSentuh.style.left = e.clientX + "px";
-  cincinSentuh.style.top = e.clientY + "px";
-  cincinSentuh.hidden = false;
+function resetAnalog() {
+  analog.aktif = false; analog.mag = 0; analog.nx = 0; analog.ny = 0;
+  elKnob.style.transform = "translate(0px, 0px)";
+}
+
+elAnalog.addEventListener("pointerdown", (e) => {
+  if (jariAnalog !== null) return;
+  jariAnalog = e.pointerId;
+  e.stopPropagation();
+  try { elAnalog.setPointerCapture(e.pointerId); } catch (err) { /* aman diabaikan */ }
+  const kotak = elAnalog.getBoundingClientRect();
+  pusatX = kotak.left + kotak.width / 2;
+  pusatY = kotak.top + kotak.height / 2;
+  perbaruiAnalog(e.clientX, e.clientY);
 });
-el.game.addEventListener("pointermove", (e) => {
-  if (e.pointerId !== jariKendali) return;
-  terapkanKemudi(e.clientX, e.clientY);       // arah berubah mengikuti gerakan jari
-  cincinSentuh.style.left = e.clientX + "px";
-  cincinSentuh.style.top = e.clientY + "px";
+elAnalog.addEventListener("pointermove", (e) => {
+  if (e.pointerId !== jariAnalog) return;
+  perbaruiAnalog(e.clientX, e.clientY);
 });
-const lepasKemudi = (e) => {
-  if (e.pointerId !== jariKendali) return;
-  jariKendali = null;
-  kunci.atas = kunci.bawah = kunci.kiri = kunci.kanan = false;
-  cincinSentuh.hidden = true;
+const lepasAnalog = (e) => {
+  if (e.pointerId !== jariAnalog) return;
+  jariAnalog = null;
+  resetAnalog();
 };
-el.game.addEventListener("pointerup", lepasKemudi);
-el.game.addEventListener("pointercancel", lepasKemudi);
+elAnalog.addEventListener("pointerup", lepasAnalog);
+elAnalog.addEventListener("pointercancel", lepasAnalog);
 
 function toggleSuara() {
   state.bisu = !state.bisu;
@@ -517,24 +522,35 @@ requestAnimationFrame(siklus);
 function perbaruiPermainan(dt) {
   state.waktu += dt;
 
-  /* ---- gerakan pemain (dengan lari : tahan maju sebentar) ---- */
+  /* ---- gerakan pemain : keyboard (desktop) / analog (mobile) ---- */
+  const pakaiAnalog = analog.aktif && !state.popupTerbuka;
   let tx = 0, tz = 0;
   if (!state.popupTerbuka) {
-    if (kunci.atas) tz -= 1;         // maju = -Z
-    if (kunci.bawah) tz += 1;
-    if (kunci.kiri) tx -= 1;         // geser ke kiri layar
-    if (kunci.kanan) tx += 1;        // geser ke kanan layar
+    if (pakaiAnalog) {
+      tx = analog.nx;                  // arah satuan dari analog
+      tz = analog.ny;                  // layar bawah (+y) = mundur (+Z)
+    } else {
+      if (kunci.atas) tz -= 1;         // maju = -Z
+      if (kunci.bawah) tz += 1;
+      if (kunci.kiri) tx -= 1;         // geser ke kiri layar
+      if (kunci.kanan) tx += 1;        // geser ke kanan layar
+    }
   }
   const panjang = Math.hypot(tx, tz);
   if (panjang > 0) { tx /= panjang; tz /= panjang; }
 
-  /* lari : tombol maju ditahan terus -> kecepatan naik mulus sampai batas */
-  if (kunci.atas && !kunci.bawah && !state.popupTerbuka) {
+  /* lari : keyboard = tahan maju sebentar; analog = dorong jauh (>75%) */
+  let targetLari;
+  if (pakaiAnalog) {
+    pemain.waktuMaju = 0;
+    targetLari = analog.mag > AMBANG_LARI ? CONFIG.faktorLari : 1;
+  } else if (kunci.atas && !kunci.bawah && !state.popupTerbuka) {
     pemain.waktuMaju += dt;
+    targetLari = 1 + Math.min(pemain.waktuMaju / CONFIG.waktuTahanLari, 1) * (CONFIG.faktorLari - 1);
   } else {
     pemain.waktuMaju = Math.max(0, pemain.waktuMaju - dt * 3);
+    targetLari = 1 + Math.min(pemain.waktuMaju / CONFIG.waktuTahanLari, 1) * (CONFIG.faktorLari - 1);
   }
-  const targetLari = 1 + Math.min(pemain.waktuMaju / CONFIG.waktuTahanLari, 1) * (CONFIG.faktorLari - 1);
   pemain.faktorLari = THREE.MathUtils.damp(pemain.faktorLari, targetLari, 6, dt);
   el.indikatorLari.hidden = pemain.faktorLari < 1.25;
 
@@ -600,8 +616,13 @@ function perbaruiPermainan(dt) {
     if (pemain.pos.distanceTo(desa.titik) < CONFIG.jarakKunjungi) { state.desaDekat = desa; break; }
   }
   const dekat = state.desaDekat;
-  el.promptDesa.hidden = !dekat || state.popupTerbuka;
+  el.promptDesa.hidden = !dekat || state.popupTerbuka || perangkatSentuh;
   if (dekat) el.promptNama.textContent = dekat.data.nama;
+
+  /* perangkat sentuh : card desa terbuka otomatis saat sampai di gapura */
+  if (dekat && perangkatSentuh && waktuGlobal > state.jedaKunjungOtomatis) {
+    kunjungiDesa(dekat);
+  }
 
   /* ---- NPC pinggir jalan menyapa lewat balon ucapan saat dilewati ---- */
   for (const npc of dunia.npcList) {
@@ -900,6 +921,9 @@ function tutupPopup() {
   state.popupTerbuka = false;
   el.popup.classList.remove("tampil");
   el.popup.setAttribute("aria-hidden", "true");
+  /* jeda sebelum kunjungan otomatis boleh terpicu lagi (mobile),
+     agar popup tidak langsung terbuka kembali saat masih di radius desa */
+  state.jedaKunjungOtomatis = waktuGlobal + 6;
   /* jika semua desa sudah dikunjungi -> langsung ke layar akhir */
   if (state.dikunjungi.size >= DESA_LIST.length) setTimeout(tampilkanAkhir, 600);
 }

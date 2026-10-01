@@ -176,14 +176,13 @@
       <span><kbd>M</kbd> Suara</span>
     </div>
 
-    <!-- Kontrol sentuh : arah gerak lewat sentuhan layar (main.js),
-         tombol E tetap tersedia untuk mengunjungi desa -->
+    <!-- Kontrol sentuh : analog virtual untuk berjalan/lari (main.js).
+         Kunjungan desa otomatis saat karakter sampai di gapura. -->
     <div id="kontrol-sentuh" aria-hidden="true">
-      <button id="btn-e-sentuh" class="ks-e" aria-label="Kunjungi desa">E</button>
+      <div id="analog">
+        <div id="analog-tombol"></div>
+      </div>
     </div>
-
-    <!-- cincin indikator titik sentuh -->
-    <div id="cincin-sentuh" hidden></div>
   </section>
 
   <!-- ============================================================
