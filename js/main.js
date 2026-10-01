@@ -413,7 +413,7 @@ const elAnalog = $("analog");
 const elKnob = $("analog-tombol");
 let jariAnalog = null;
 let pusatX = 0, pusatY = 0;
-const JARIK_MAX = 44;                        // jarak geser maksimum knob (px) — UI tetap kecil
+const JARIK_MAX = 32;                        // jarak geser maksimum knob (px) — knob tetap di dalam dasar
 const ZONA_MATI = 0.18;                      // dorongan di bawah ini = berdiri
 const AMBANG_LARI = 0.75;                    // dorongan di atas ini = lari
 
@@ -928,11 +928,22 @@ function tutupPopup() {
   if (state.dikunjungi.size >= DESA_LIST.length) setTimeout(tampilkanAkhir, 600);
 }
 
-el.popupTutup.addEventListener("click", () => { AudioEngine.sfx("klik"); tutupPopup(); });
-el.popupTutupX.addEventListener("click", () => { AudioEngine.sfx("klik"); tutupPopup(); });
+/* tombol popup memakai pointerdown agar responsif & andal di layar sentuh —
+   event click sering gagal terpicu bila konten popup bisa digulir.
+   Guard popupTerbuka mencegah eksekusi ganda (pointerdown + click). */
+function pasangTombolPopup(tombol, aksi) {
+  const jalankan = () => {
+    if (!state.popupTerbuka) return;
+    AudioEngine.sfx("klik");
+    aksi();
+  };
+  tombol.addEventListener("pointerdown", (e) => { e.preventDefault(); jalankan(); });
+  tombol.addEventListener("click", jalankan);
+}
+pasangTombolPopup(el.popupTutup, tutupPopup);
+pasangTombolPopup(el.popupTutupX, tutupPopup);
 
-el.popupLanjut.addEventListener("click", () => {
-  AudioEngine.sfx("klik");
+function aksiDesaBerikutnya() {
   const sisa = DESA_LIST.length - state.dikunjungi.size;
   if (sisa <= 0) { tutupPopup(); return; }
 
@@ -947,10 +958,12 @@ el.popupLanjut.addEventListener("click", () => {
     state.targetDesa = target;
     dunia.setTargetDesa(target);
     state.popupTerbuka = false;
+    state.jedaKunjungOtomatis = waktuGlobal + 6;
     el.popup.classList.remove("tampil");
-    tampilkanToast("🧭 Ikuti mercu cahaya ke " + DESA_LIST[target].nama);
+    tampilkanToast("Ikuti mercu cahaya ke " + DESA_LIST[target].nama);
   }
-});
+}
+pasangTombolPopup(el.popupLanjut, aksiDesaBerikutnya);
 
 /* ---------------------------------------------------------------------------
    10. LAYAR AKHIR — kabut awan menutup perjalanan (misterius, tanpa confetti)
